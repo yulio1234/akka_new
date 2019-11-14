@@ -10,21 +10,71 @@ object DeviceManager {
 
   sealed trait Command
 
+  /**
+   * 请求返回注册的该设备
+   * @param groupId
+   * @param deviceId
+   * @param replyTo
+   */
   final case class RequestTrackDevice(groupId: String, deviceId: String, replyTo: ActorRef[DeviceRegistered])
     extends DeviceManager.Command
       with DeviceGroup.Command
 
+  /**
+   * 返回的已注册设备
+   * @param device
+   */
   final case class DeviceRegistered(device: ActorRef[Device.Command])
 
+  /**
+   * 请求返回列表
+   * @param requestId
+   * @param groupId
+   * @param replyTo
+   */
   final case class RequestDeviceList(requestId: Long, groupId: String, replyTo: ActorRef[ReplyDeviceList])
     extends DeviceManager.Command
       with DeviceGroup.Command
 
+  /**
+   * 返回设备列表
+   * @param requestId
+   * @param ids
+   */
   final case class ReplyDeviceList(requestId: Long, ids: Set[String])
 
+  /**
+   * 设备组关闭请求
+   * @param groupId
+   */
   private final case class DeviceGroupTerminated(groupId: String) extends DeviceManager.Command
 
+  /**
+   * 请求返回所有设备的温度快照
+   * @param requestId
+   * @param groupId
+   * @param replyTo
+   */
+  final case class RequestAllTemperatures(requestId: Long, groupId: String, replyTo: ActorRef[RespondAllTemperatures])
+    extends DeviceGroupQuery.Command
+      with DeviceGroup.Command
+      with DeviceManager.Command
 
+  /**
+   * 返回设备的温度快照
+   * @param requestId
+   * @param temperatures
+   */
+  final case class RespondAllTemperatures(requestId: Long, temperatures: Map[String, TemperatureReading])
+
+  /**
+   * 请求返回温度
+   */
+  sealed trait TemperatureReading
+  final case class Temperature(value: Double) extends TemperatureReading
+  case object TemperatureNotAvailable extends TemperatureReading
+  case object DeviceNotAvailable extends TemperatureReading
+  case object DeviceTimedOut extends TemperatureReading
 }
 class DeviceManager(context: ActorContext[DeviceManager.Command])
   extends AbstractBehavior[DeviceManager.Command](context) {
@@ -36,6 +86,7 @@ class DeviceManager(context: ActorContext[DeviceManager.Command])
 
   override def onMessage(msg: Command): Behavior[Command] =
     msg match {
+        //请求返回已注册的设备，如果有group就将消息转发到group中，如果没有就创建group，然后在转发
       case trackMsg @ RequestTrackDevice(groupId, _, replyTo) =>
         groupIdToActor.get(groupId) match {
           case Some(ref) =>

@@ -2,7 +2,7 @@ package com.example.iot
 
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior, PostStop, Signal}
-
+import scala.concurrent.duration._
 /**
  * 设备组管理
  */
@@ -18,15 +18,22 @@ object DeviceGroup {
 class DeviceGroup(context: ActorContext[DeviceGroup.Command], groupId: String)
   extends AbstractBehavior[DeviceGroup.Command](context) {
   import DeviceGroup._
+  import DeviceManager.{
+    DeviceRegistered,
+    ReplyDeviceList,
+    RequestAllTemperatures,
+    RequestDeviceList,
+    RequestTrackDevice
+  }
   import DeviceManager.{ DeviceRegistered, ReplyDeviceList, RequestDeviceList, RequestTrackDevice }
-
+  //该分组下，所有设备容器
   private var deviceIdToActor = Map.empty[String, ActorRef[Device.Command]]
 
   context.log.info("DeviceGroup {} started", groupId)
 
   override def onMessage(msg: Command): Behavior[Command] =
-    //匹配消息，如果有就返回，如果没有就创建再返回
     msg match {
+      //匹配消息，如果有就返回，如果没有就创建再返回,加上`groupId`是因为和外面的重复了
       case trackMsg @ RequestTrackDevice(`groupId`, deviceId, replyTo) =>
         deviceIdToActor.get(deviceId) match {
           case Some(deviceActor) =>
@@ -56,6 +63,15 @@ class DeviceGroup(context: ActorContext[DeviceGroup.Command], groupId: String)
         context.log.info("Device actor for {} has been terminated", deviceId)
         deviceIdToActor -= deviceId
         this
+        //查询所有设备温度
+      case RequestAllTemperatures(requestId, gId, replyTo) =>
+        if (gId == groupId) {
+          //创建匿名actor
+          context.spawnAnonymous(
+            DeviceGroupQuery(deviceIdToActor, requestId = requestId, requester = replyTo, 3.seconds))
+          this
+        } else
+          Behaviors.unhandled
     }
 
   override def onSignal: PartialFunction[Signal, Behavior[Command]] = {
@@ -63,3 +79,4 @@ class DeviceGroup(context: ActorContext[DeviceGroup.Command], groupId: String)
       context.log.info("DeviceGroup {} stopped", groupId)
       this
   }
+}
