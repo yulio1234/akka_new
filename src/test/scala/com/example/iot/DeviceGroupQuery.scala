@@ -16,8 +16,7 @@ class DeviceGroupQuerySpec  extends ScalaTestWithActorTestKit with WordSpecLike 
 
     val deviceIdToActor = Map("device1" -> device1.ref, "device2" -> device2.ref)
 
-    val queryActor =
-      spawn(DeviceGroupQuery(deviceIdToActor, requestId = 1, requester = requester.ref, timeout = 3.seconds))
+    val queryActor = spawn(DeviceGroupQuery(deviceIdToActor, requestId = 1, requester = requester.ref, timeout = 3.seconds))
 
     device1.expectMessageType[Device.ReadTemperature]
     device2.expectMessageType[Device.ReadTemperature]
