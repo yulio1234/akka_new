@@ -3,6 +3,9 @@ package com.example
 import akka.actor.typed.{Behavior, PostStop, Signal}
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 
+/**
+ * 基于面向对象范式
+ */
 object StartStopActor2 {
   def apply(): Behavior[String] =
     Behaviors.setup(new StartStopActor2(_))
